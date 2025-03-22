@@ -2,20 +2,126 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>ChatBot Personalizado</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatBot Inteligente</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        #chat { height: 500px; border: 1px solid #ccc; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
-        .user { color: blue; margin: 5px 0; }
-        .bot { color: green; margin: 5px 0; }
-        input { width: 70%; padding: 5px; }
-        button { padding: 5px 15px; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            padding: 15px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        #chat {
+            height: 70vh;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            max-width: 80%;
+            word-break: break-word;
+        }
+
+        .user-message {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+
+        .bot-message {
+            background: #e9ecef;
+            color: #212529;
+            margin-right: auto;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #dee2e6;
+        }
+
+        #userInput {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 25px;
+            outline: none;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 25px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .context-info {
+            padding: 10px 20px;
+            background: #e9ecef;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+
+        @media (max-width: 768px) {
+            #chat {
+                height: 60vh;
+                padding: 15px;
+            }
+
+            .message {
+                max-width: 90%;
+                font-size: 14px;
+            }
+
+            #userInput {
+                padding: 10px;
+                font-size: 14px;
+            }
+
+            button {
+                padding: 10px 20px;
+            }
+        }
     </style>
 </head>
 <body>
-    <div id="chat"></div>
-    <input type="text" id="userInput" placeholder="Digite sua mensagem...">
-    <button onclick="enviarMensagem()">Enviar</button>
+    <div class="container">
+        <div class="context-info" id="contextInfo"></div>
+        <div id="chat"></div>
+        <div class="input-container">
+            <input type="text" id="userInput" placeholder="Digite sua mensagem...">
+            <button onclick="enviarMensagem()">Enviar</button>
+        </div>
+    </div>
 
     <script>
         let datasets = {};
@@ -23,99 +129,129 @@
         let contextoAtual = 'geral';
         let primeiraMensagem = true;
 
-        // Datasets de exemplo
         const datasetsConfig = [
-            { categoria: 'bíblico', url: 'versiculos.json' },
             { categoria: 'geral', url: 'geral.json' },
+            { categoria: 'bíblico', url: 'versiculos.json' },
             { categoria: 'tech', url: 'tecnologia.json' },
-            { categoria: 'signos', url: 'signos.json' }
+            {categoria: 'signo', url:'signo.json'}
         ];
 
-        // Carregar datasets
+        // Comandos do sistema
+        const comandos = {
+            ajuda: {
+                desc: "Mostra todos os comandos disponíveis",
+                handler: () => {
+                    let helpText = "<strong>Comandos disponíveis:</strong><br>";
+                    Object.entries(comandos).forEach(([cmd, info]) => {
+                        helpText += `<b>/${cmd}</b>: ${info.desc}<br>`;
+                    });
+                    return helpText;
+                }
+            },
+            mudar: {
+                desc: "Muda o contexto da conversa",
+                handler: (args) => {
+                    if (!args.length) return "Digite: /mudar [contexto]";
+                    const novoContexto = args[0].toLowerCase();
+                    if (datasets[novoContexto]) {
+                        contextoAtual = novoContexto;
+                        atualizarContextoInfo();
+                        return `Contexto alterado para: <i>${novoContexto}</i>`;
+                    }
+                    return `Contexto inválido! Disponíveis: ${Object.keys(datasets).join(', ')}`;
+                }
+            },
+            contextos: {
+                desc: "Lista todos os contextos disponíveis",
+                handler: () => `Contextos: ${Object.keys(datasets).join(', ')}`
+            },
+            nome: {
+                desc: "Mostra ou altera seu nome",
+                handler: (args) => {
+                    if (args.length) {
+                        nomeUsuario = args.join(' ');
+                        localStorage.setItem('nomeUsuario', nomeUsuario);
+                        return `Nome alterado para: ${nomeUsuario}`;
+                    }
+                    return nomeUsuario ? `Seu nome é: ${nomeUsuario}` : "Você ainda não informou seu nome";
+                }
+            }
+        };
+
         async function carregarDatasets() {
-            for (const config of datasetsConfig) {
-                try {
+            try {
+                await Promise.all(datasetsConfig.map(async config => {
                     const response = await fetch(config.url);
                     datasets[config.categoria] = await response.json();
-                } catch (error) {
-                    console.error(`Erro ao carregar ${config.url}:`, error);
-                }
+                }));
+                atualizarContextoInfo();
+            } catch (error) {
+                console.error('Erro ao carregar datasets:', error);
             }
         }
 
         function detectarNome(entrada) {
-            const padroes = [
-                /meu nome é (\w+)/i,
-                /eu sou o (\w+)/i,
-                /eu sou a (\w+)/i,
-                /pode me chamar de (\w+)/i
-            ];
-
-            for (const padrao of padroes) {
-                const match = entrada.match(padrao);
-                if (match) {
-                    nomeUsuario = match[1];
-                    localStorage.setItem('nomeUsuario', nomeUsuario);
-                    return true;
-                }
+            const padrao = /(?:meu nome é|eu sou|pode me chamar de) (\w+)/i;
+            const match = entrada.match(padrao);
+            if (match) {
+                nomeUsuario = match[1];
+                localStorage.setItem('nomeUsuario', nomeUsuario);
+                return true;
             }
             return false;
         }
 
-        function obterResposta(entrada) {
-            // Detectar nome na mensagem
-            if (detectarNome(entrada)) {
-                return `Prazer em conhecê-lo, ${nomeUsuario}! Como posso ajudar?`;
-            }
+        function processarComando(entrada) {
+            const [comando, ...args] = entrada.slice(1).split(' ');
+            const cmd = comandos[comando.toLowerCase()];
+            return cmd ? cmd.handler(args) : "Comando desconhecido! Use /ajuda para ver opções.";
+        }
 
-            // Buscar resposta nos datasets
-            if (datasets[contextoAtual]?.intencoes) {
-                for (const intencao of datasets[contextoAtual].intencoes) {
-                    for (const padrao of intencao.padroes) {
-                        if (entrada.toLowerCase().includes(padrao.toLowerCase())) {
-                            const respostas = intencao.respostas;
-                            const resposta = respostas[Math.floor(Math.random() * respostas.length)];
-                            return resposta.replace(/{nome}/g, nomeUsuario);
-                        }
-                    }
+        function obterResposta(entrada) {
+            if (detectarNome(entrada)) return `Prazer em conhecê-lo, ${nomeUsuario}!`;
+            
+            const intencoes = datasets[contextoAtual]?.intencoes || [];
+            for (const intencao of intencoes) {
+                if (intencao.padroes.some(padrao => entrada.toLowerCase().includes(padrao))) {
+                    const resposta = intencao.respostas[Math.floor(Math.random() * intencao.respostas.length)];
+                    return resposta.replace(/{nome}/g, nomeUsuario);
                 }
             }
             return "Desculpe, não entendi. Pode reformular?";
         }
 
         function adicionarMensagem(texto, tipo) {
-            const chatDiv = document.getElementById('chat');
+            const chat = document.getElementById('chat');
             const div = document.createElement('div');
-            div.className = tipo === 'user' ? 'user' : 'bot';
+            div.className = `message ${tipo}-message`;
             div.innerHTML = texto;
-            chatDiv.appendChild(div);
-            chatDiv.scrollTop = chatDiv.scrollHeight;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function atualizarContextoInfo() {
+            document.getElementById('contextInfo').textContent = `Contexto atual: ${contextoAtual}`;
         }
 
         function enviarMensagem() {
             const input = document.getElementById('userInput');
             const texto = input.value.trim();
-            
-            if (texto === '') return;
+            if (!texto) return;
 
-            // Primeira interação
-            if (primeiraMensagem) {
-                if (!nomeUsuario) {
-                    adicionarMensagem(`Bot: Olá! Qual é o seu nome?`, 'bot');
+            adicionarMensagem(texto, 'user');
+
+            if (texto.startsWith('/')) {
+                const resposta = processarComando(texto);
+                adicionarMensagem(resposta, 'bot');
+            } else {
+                if (primeiraMensagem && !nomeUsuario) {
+                    adicionarMensagem("Olá! Qual é o seu nome?", 'bot');
+                    primeiraMensagem = false;
                 } else {
-                    adicionarMensagem(`Bot: Bem-vindo de volta, ${nomeUsuario}! Como posso ajudar?`, 'bot');
+                    const resposta = obterResposta(texto);
+                    adicionarMensagem(resposta, 'bot');
                 }
-                primeiraMensagem = false;
-                input.value = '';
-                return;
             }
-
-            // Adicionar mensagem do usuário
-            adicionarMensagem(`Você: ${texto}`, 'user');
-
-            // Obter e mostrar resposta
-            const resposta = obterResposta(texto);
-            adicionarMensagem(`Bot: ${resposta}`, 'bot');
 
             input.value = '';
         }
@@ -123,16 +259,12 @@
         // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
             carregarDatasets();
-            if (!nomeUsuario) {
-                primeiraMensagem = true;
-            } else {
-                adicionarMensagem(`Bot: Bem-vindo de volta, ${nomeUsuario}!`, 'bot');
+            document.getElementById('userInput').addEventListener('keypress', e => {
+                if (e.key === 'Enter') enviarMensagem();
+            });
+            if (nomeUsuario) {
+                adicionarMensagem(`Bem-vindo de volta, ${nomeUsuario}!`, 'bot');
             }
-        });
-
-        // Evento para tecla Enter
-        document.getElementById('userInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') enviarMensagem();
         });
     </script>
 </body>
