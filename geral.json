@@ -1,0 +1,28 @@
+{
+    "intencoes": [
+        {
+            "padroes": ["oi", "olá", "bom dia"],
+            "respostas": [
+                "Olá, {nome}! Como posso ajudar?",
+                "Prazer em vê-lo novamente, {nome}!",
+                "Oi {nome}, no que posso ajudar hoje?"
+            ]
+        },
+        {
+            "padroes": ["qual é meu nome", "lembra do meu nome"],
+            "respostas": [
+                "Seu nome é {nome}, estou certo? 😊",
+                "Claro que lembro! Você é o {nome}!",
+                "Como poderia esquecer do {nome}?"
+            ]
+        },
+        {
+            "padroes": ["sair", "adeus", "tchau"],
+            "respostas": [
+                "Até mais, {nome}! Volte sempre!",
+                "Foi um prazer ajudar, {nome}!",
+                "Até a próxima, {nome}!"
+            ]
+        }
+    ]
+}
