@@ -1,7 +1,7 @@
 {
     "intencoes": [
         {
-            "padroes": ["oi", "olá", "bom dia"],
+            "padroes": ["oi", "olá", "bom dia", "boa tarde", "boa noite", "tudo bem?", "olá amigo", "anna?", "hello" ],
             "respostas": [
                 "Olá, {nome}! Como posso ajudar?",
                 "Prazer em vê-lo novamente, {nome}!",
@@ -9,7 +9,7 @@
             ]
         },
         {
-            "padroes": ["qual é meu nome", "lembra do meu nome"],
+            "padroes": ["qual é meu nome", "lembra do meu nome", "qual é o meu nome", "como me chamo", "você sabe como eu me chamo","meu nome", "você sabe o meu nome", "o meu nome"],
             "respostas": [
                 "Seu nome é {nome}, estou certo? 😊",
                 "Claro que lembro! Você é o {nome}!",
@@ -23,6 +23,10 @@
                 "Foi um prazer ajudar, {nome}!",
                 "Até a próxima, {nome}!"
             ]
+        },
+        {
+          "padroes":["tudo bem!", "estou ótimo" , "estou bem", "estou de boas"],
+          "respostas":["Nossa {nome} que top", "{nome} que bom amigo", "{nome} que ótimo cara", "Estou feliz em descobrir", "Que bom {nome}"]
         }
     ]
 }
