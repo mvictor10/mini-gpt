@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>ChatBot Multi-tópico</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        #chat { height: 500px; border: 1px solid #ccc; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
+        .user { color: blue; margin: 5px 0; }
+        .bot { color: green; margin: 5px 0; }
+        input { width: 70%; padding: 5px; }
+        button { padding: 5px 15px; }
+    </style>
+</head>
+<body>
+    <div id="chat"></div>
+    <input type="text" id="userInput" placeholder="Digite sua mensagem...">
+    <button onclick="enviarMensagem()">Enviar</button>
+
+    <script>
+        let datasets = {};
+        let contextoAtual = 'geral';
+        const datasetsConfig = [
+            { categoria: 'bíblico', url: 'versiculos.json' },
+            { categoria: 'geral', url: 'talks.json' },
+            { categoria: 'tech', url: 'tecnologia.json' },
+            { categoria: 'signos', url: 'signos.json' }
+        ];
+
+        // Carregar datasets
+        async function carregarDatasets() {
+            for (const config of datasetsConfig) {
+                try {
+                    const response = await fetch(config.url);
+                    datasets[config.categoria] = await response.json();
+                    adicionarMensagem(`Sistema: Dataset '${config.categoria}' carregado!`, 'system');
+                } catch (error) {
+                    console.error(`Erro ao carregar ${config.url}:`, error);
+                    adicionarMensagem(`Sistema: Erro ao carregar ${config.url}`, 'error');
+                }
+            }
+        }
+
+        function obterResposta(entrada) {
+            const prioridade = contextoAtual === 'bíblico' 
+                ? ['bíblico', 'geral'] 
+                : ['geral', 'bíblico'];
+
+            for (const categoria of prioridade) {
+                if (datasets[categoria]?.intencoes) {
+                    for (const intencao of datasets[categoria].intencoes) {
+                        for (const padrao of intencao.padroes) {
+                            if (entrada.toLowerCase().includes(padrao.toLowerCase())) {
+                                const respostas = intencao.respostas;
+                                return respostas[Math.floor(Math.random() * respostas.length)];
+                            }
+                        }
+                    }
+                }
+            }
+            return "Desculpe, não entendi. Pode reformular?";
+        }
+
+        function adicionarMensagem(texto, tipo) {
+            const chatDiv = document.getElementById('chat');
+            const div = document.createElement('div');
+            div.className = tipo === 'user' ? 'user' : 'bot';
+            div.innerHTML = `[${contextoAtual}] ${texto}`;
+            chatDiv.appendChild(div);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+
+        function enviarMensagem() {
+            const input = document.getElementById('userInput');
+            const texto = input.value.trim();
+            
+            if (texto === '') return;
+            
+            // Comando para mudar contexto
+            if (texto.startsWith('/mudar ')) {
+                const novoContexto = texto.split(' ')[1];
+                if (datasets[novoContexto]) {
+                    contextoAtual = novoContexto;
+                    adicionarMensagem(`Contexto alterado para: ${novoContexto}`, 'system');
+                } else {
+                    adicionarMensagem('Contexto inválido!', 'error');
+                }
+                input.value = '';
+                return;
+            }
+
+            adicionarMensagem(`Você: ${texto}`, 'user');
+            
+            // Obter resposta
+            const resposta = obterResposta(texto);
+            adicionarMensagem(`Bot: ${resposta}`, 'bot');
+            
+            input.value = '';
+        }
+
+        // Iniciar quando o documento estiver pronto
+        document.addEventListener('DOMContentLoaded', carregarDatasets);
+        
+        // Permitir enviar com Enter
+        document.getElementById('userInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') enviarMensagem();
+        });
+    </script>
+</body>
+</html>
