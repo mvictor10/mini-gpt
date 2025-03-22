@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>ChatBot Multi-tópico</title>
+    <title>ChatBot Personalizado</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
         #chat { height: 500px; border: 1px solid #ccc; padding: 10px; overflow-y: auto; margin-bottom: 10px; }
@@ -19,12 +19,13 @@
 
     <script>
         let datasets = {};
+        let nomeUsuario = localStorage.getItem('nomeUsuario') || '';
         let contextoAtual = 'geral';
+        let primeiraMensagem = true;
+
+        // Datasets de exemplo
         const datasetsConfig = [
-            { categoria: 'bíblico', url: 'versiculos.json' },
-            { categoria: 'geral', url: 'talks.json' },
-            { categoria: 'tech', url: 'tecnologia.json' },
-            { categoria: 'signos', url: 'signos.json' }
+            { categoria: 'geral', url: 'geral.json' }
         ];
 
         // Carregar datasets
@@ -33,27 +34,45 @@
                 try {
                     const response = await fetch(config.url);
                     datasets[config.categoria] = await response.json();
-                    adicionarMensagem(`Sistema: Dataset '${config.categoria}' carregado!`, 'system');
                 } catch (error) {
                     console.error(`Erro ao carregar ${config.url}:`, error);
-                    adicionarMensagem(`Sistema: Erro ao carregar ${config.url}`, 'error');
                 }
             }
         }
 
-        function obterResposta(entrada) {
-            const prioridade = contextoAtual === 'bíblico' 
-                ? ['bíblico', 'geral'] 
-                : ['geral', 'bíblico'];
+        function detectarNome(entrada) {
+            const padroes = [
+                /meu nome é (\w+)/i,
+                /eu sou o (\w+)/i,
+                /eu sou a (\w+)/i,
+                /pode me chamar de (\w+)/i
+            ];
 
-            for (const categoria of prioridade) {
-                if (datasets[categoria]?.intencoes) {
-                    for (const intencao of datasets[categoria].intencoes) {
-                        for (const padrao of intencao.padroes) {
-                            if (entrada.toLowerCase().includes(padrao.toLowerCase())) {
-                                const respostas = intencao.respostas;
-                                return respostas[Math.floor(Math.random() * respostas.length)];
-                            }
+            for (const padrao of padroes) {
+                const match = entrada.match(padrao);
+                if (match) {
+                    nomeUsuario = match[1];
+                    localStorage.setItem('nomeUsuario', nomeUsuario);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function obterResposta(entrada) {
+            // Detectar nome na mensagem
+            if (detectarNome(entrada)) {
+                return `Prazer em conhecê-lo, ${nomeUsuario}! Como posso ajudar?`;
+            }
+
+            // Buscar resposta nos datasets
+            if (datasets[contextoAtual]?.intencoes) {
+                for (const intencao of datasets[contextoAtual].intencoes) {
+                    for (const padrao of intencao.padroes) {
+                        if (entrada.toLowerCase().includes(padrao.toLowerCase())) {
+                            const respostas = intencao.respostas;
+                            const resposta = respostas[Math.floor(Math.random() * respostas.length)];
+                            return resposta.replace(/{nome}/g, nomeUsuario);
                         }
                     }
                 }
@@ -65,7 +84,7 @@
             const chatDiv = document.getElementById('chat');
             const div = document.createElement('div');
             div.className = tipo === 'user' ? 'user' : 'bot';
-            div.innerHTML = `[${contextoAtual}] ${texto}`;
+            div.innerHTML = texto;
             chatDiv.appendChild(div);
             chatDiv.scrollTop = chatDiv.scrollHeight;
         }
@@ -75,33 +94,40 @@
             const texto = input.value.trim();
             
             if (texto === '') return;
-            
-            // Comando para mudar contexto
-            if (texto.startsWith('/mudar ')) {
-                const novoContexto = texto.split(' ')[1];
-                if (datasets[novoContexto]) {
-                    contextoAtual = novoContexto;
-                    adicionarMensagem(`Contexto alterado para: ${novoContexto}`, 'system');
+
+            // Primeira interação
+            if (primeiraMensagem) {
+                if (!nomeUsuario) {
+                    adicionarMensagem(`Bot: Olá! Qual é o seu nome?`, 'bot');
                 } else {
-                    adicionarMensagem('Contexto inválido!', 'error');
+                    adicionarMensagem(`Bot: Bem-vindo de volta, ${nomeUsuario}! Como posso ajudar?`, 'bot');
                 }
+                primeiraMensagem = false;
                 input.value = '';
                 return;
             }
 
+            // Adicionar mensagem do usuário
             adicionarMensagem(`Você: ${texto}`, 'user');
-            
-            // Obter resposta
+
+            // Obter e mostrar resposta
             const resposta = obterResposta(texto);
             adicionarMensagem(`Bot: ${resposta}`, 'bot');
-            
+
             input.value = '';
         }
 
-        // Iniciar quando o documento estiver pronto
-        document.addEventListener('DOMContentLoaded', carregarDatasets);
-        
-        // Permitir enviar com Enter
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarDatasets();
+            if (!nomeUsuario) {
+                primeiraMensagem = true;
+            } else {
+                adicionarMensagem(`Bot: Bem-vindo de volta, ${nomeUsuario}!`, 'bot');
+            }
+        });
+
+        // Evento para tecla Enter
         document.getElementById('userInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') enviarMensagem();
         });
